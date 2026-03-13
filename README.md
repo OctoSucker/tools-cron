@@ -1,6 +1,6 @@
-# skill-cron
+# tools-cron
 
-定时任务 Skill：按 cron 表达式或固定间隔向 Agent 提交任务，支持配置静态任务与通过工具动态增删。
+定时任务 Tool Provider：按 cron 表达式或固定间隔向 Agent 提交任务，支持配置静态任务与通过工具动态增删。
 
 ## 工具
 
@@ -13,7 +13,7 @@
 
 ## 配置
 
-在 Agent 配置的 `skills["github.com/OctoSucker/skill-cron"]` 下：
+在 Agent 配置的 `tool_providers["github.com/OctoSucker/tools-cron"]` 下：
 
 | 键 | 说明 |
 |------|------|
