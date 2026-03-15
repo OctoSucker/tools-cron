@@ -3,7 +3,7 @@ module github.com/OctoSucker/tools-cron
 go 1.25.4
 
 require (
-	github.com/OctoSucker/octosucker-tools v0.0.0-20260313143338-cd2656c207cc
+	github.com/OctoSucker/octosucker-tools v0.0.0-20260315170737-a8c8505a7e69
 	github.com/google/uuid v1.6.0
 	github.com/robfig/cron/v3 v3.0.1
 	modernc.org/sqlite v1.29.1

@@ -30,9 +30,10 @@ type SkillCron struct {
 	dynamicEntries map[string]robfigcron.EntryID
 }
 
-func (s *SkillCron) Init(config map[string]interface{}) error {
+func (s *SkillCron) Init(config map[string]interface{}, submitTask func(string) error) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	s.submitter = submitTask
 	if s.cr != nil {
 		s.cr.Stop()
 		s.cr = nil
@@ -44,7 +45,6 @@ func (s *SkillCron) Init(config map[string]interface{}) error {
 	}
 	s.staticJobs = nil
 	s.loc = time.Local
-
 	if config == nil {
 		return nil
 	}
@@ -154,16 +154,9 @@ func (s *SkillCron) getStore() *Store {
 
 var globalSkillCron *SkillCron
 
-func RegisterCronSkill(registry *tools.ToolRegistry, agent interface{}) error {
-	taskSubmitter, ok := agent.(tools.TaskSubmitter)
-	if ok {
-		globalSkillCron.mu.Lock()
-		globalSkillCron.submitter = taskSubmitter.SubmitTask
-		globalSkillCron.mu.Unlock()
-		globalSkillCron.startCron()
-	}
-
-	registry.Register(&tools.Tool{
+func (s *SkillCron) Register(registry *tools.ToolRegistry, agent interface{}, providerName string) error {
+	s.startCron()
+	registry.RegisterTool(providerName, &tools.Tool{
 		Name:        "cron_list",
 		Description: "列出当前所有定时任务（含配置中的静态任务与通过 cron_add 添加的动态任务）。返回 id、spec、task_input、enabled、created_at；静态任务无 id。",
 		Parameters: map[string]interface{}{
@@ -172,7 +165,7 @@ func RegisterCronSkill(registry *tools.ToolRegistry, agent interface{}) error {
 		},
 		Handler: handleCronList,
 	})
-	registry.Register(&tools.Tool{
+	registry.RegisterTool(providerName, &tools.Tool{
 		Name:        "cron_add",
 		Description: "添加一条定时任务并持久化。到点时将 task_input 提交给 Agent 执行。spec 支持标准 cron（如 0 9 * * * 每天 9 点）或 @every 1h、@every 30m 等。",
 		Parameters: map[string]interface{}{
@@ -191,7 +184,7 @@ func RegisterCronSkill(registry *tools.ToolRegistry, agent interface{}) error {
 		},
 		Handler: handleCronAdd,
 	})
-	registry.Register(&tools.Tool{
+	registry.RegisterTool(providerName, &tools.Tool{
 		Name:        "cron_remove",
 		Description: "按 job_id 删除定时任务（仅限通过 cron_add 添加的动态任务，无法删除配置中的静态任务）。",
 		Parameters: map[string]interface{}{
@@ -206,7 +199,7 @@ func RegisterCronSkill(registry *tools.ToolRegistry, agent interface{}) error {
 		},
 		Handler: handleCronRemove,
 	})
-	registry.Register(&tools.Tool{
+	registry.RegisterTool(providerName, &tools.Tool{
 		Name:        "cron_toggle",
 		Description: "按 job_id 启用或禁用定时任务（仅限动态任务）。禁用后不再触发，但保留在列表中可再次启用。",
 		Parameters: map[string]interface{}{
@@ -374,5 +367,8 @@ func handleCronToggle(ctx context.Context, params map[string]interface{}) (inter
 
 func init() {
 	globalSkillCron = &SkillCron{}
-	tools.RegisterToolProviderWithMetadata(providerName, tools.ToolProviderMetadata{Name: providerName}, RegisterCronSkill, globalSkillCron)
+	tools.RegisterToolProvider(&tools.ToolProviderInfo{
+		Name:     providerName,
+		Provider: globalSkillCron,
+	})
 }
